@@ -7,12 +7,14 @@ interface LandingPageProps {
   onStartBuilding: () => void;
   onOpenLoadSampleModal: () => void;
   onSelectTemplate: (template: TemplateId) => void;
+  onOpenAtsScanner?: () => void;
 }
 
 export const LandingPage: React.FC<LandingPageProps> = ({
   onStartBuilding,
   onOpenLoadSampleModal,
   onSelectTemplate,
+  onOpenAtsScanner,
 }) => {
   return (
     <div className="space-y-16 py-8 sm:py-12">
@@ -29,7 +31,7 @@ export const LandingPage: React.FC<LandingPageProps> = ({
         </h1>
 
         <p className="text-base sm:text-lg text-slate-600 max-w-2xl mx-auto leading-relaxed">
-          Create a professional ATS-friendly resume in minutes. Free to build, edit, preview, and download as clean vector PDF.
+          Create a professional ATS-friendly resume in minutes, or upload and scan your existing resume for machine-readability and job match score.
         </p>
 
         {/* CTA Buttons */}
@@ -42,6 +44,17 @@ export const LandingPage: React.FC<LandingPageProps> = ({
             <span>Create My Resume</span>
             <ArrowRight className="w-4 h-4 group-hover:translate-x-0.5 transition-transform" />
           </button>
+
+          {onOpenAtsScanner && (
+            <button
+              type="button"
+              onClick={onOpenAtsScanner}
+              className="w-full sm:w-auto px-6 py-3.5 bg-indigo-50 hover:bg-indigo-100 active:bg-indigo-200 text-indigo-900 border border-indigo-200 rounded-xl text-sm font-bold shadow-xs transition-all flex items-center justify-center gap-2"
+            >
+              <Zap className="w-4 h-4 text-indigo-600" />
+              <span>Upload & Scan Resume</span>
+            </button>
+          )}
 
           <button
             type="button"

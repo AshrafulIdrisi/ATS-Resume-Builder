@@ -9,7 +9,8 @@ dotenv.config();
 const app = express();
 const PORT = 3000;
 
-app.use(express.json());
+app.use(express.json({ limit: "25mb" }));
+app.use(express.urlencoded({ extended: true, limit: "25mb" }));
 
 // Lazy-initialize Gemini client
 let aiClient: GoogleGenAI | null = null;
@@ -196,6 +197,140 @@ Important:
   } catch (error: any) {
     console.error("AI Job Matcher error:", error);
     return res.status(500).json({ error: error.message || "Failed to analyze job match" });
+  }
+});
+
+// API: Parse & Audit Uploaded Resume File (PDF, Image, DOCX, TXT, JSON)
+app.post("/api/ai/parse-resume-file", async (req, res) => {
+  try {
+    const { fileBase64, mimeType, fileName, rawText } = req.body;
+    const ai = getGeminiClient();
+
+    if (!fileBase64 && !rawText) {
+      return res.status(400).json({ error: "File data or text is required" });
+    }
+
+    if (!ai) {
+      return res.status(503).json({
+        error: "AI service not configured on server",
+        fallback: true,
+      });
+    }
+
+    const cleanBase64 = fileBase64 ? fileBase64.replace(/^data:[^;]+;base64,/, "") : "";
+    const effectiveMimeType = mimeType || "application/pdf";
+
+    const prompt = `You are an expert ATS (Applicant Tracking System) parser and resume auditor.
+A user has uploaded their resume file ("${fileName || "Uploaded Resume"}").
+Analyze the document thoroughly and perform two key jobs:
+1. Extract ALL content accurately into both full plain text and structured ATS resume data.
+2. Perform an ATS machine-readability audit of the file format, layout, font structure, and section hierarchy.
+
+Return a valid JSON object matching this schema:
+{
+  "extractedRawText": "string (the complete extracted plain text of the resume, preserving chronological flow)",
+  "personalInfo": {
+    "fullName": "string",
+    "jobTitle": "string",
+    "email": "string",
+    "phone": "string",
+    "location": "string",
+    "linkedin": "string",
+    "website": "string"
+  },
+  "summary": "string",
+  "experience": [
+    {
+      "jobTitle": "string",
+      "company": "string",
+      "location": "string",
+      "startDate": "string",
+      "endDate": "string",
+      "current": false,
+      "bullets": ["string"]
+    }
+  ],
+  "education": [
+    {
+      "degree": "string",
+      "institution": "string",
+      "location": "string",
+      "graduationYear": "string",
+      "gpa": "string"
+    }
+  ],
+  "skills": [
+    {
+      "category": "string (e.g. Technical Skills, Tools & Frameworks, Core Competencies)",
+      "skills": ["string"]
+    }
+  ],
+  "projects": [
+    {
+      "name": "string",
+      "description": "string",
+      "technologies": ["string"],
+      "bullets": ["string"]
+    }
+  ],
+  "certifications": [
+    {
+      "name": "string",
+      "issuer": "string",
+      "date": "string"
+    }
+  ],
+  "fileFormatAudit": {
+    "isSingleColumn": boolean,
+    "hasTablesOrGraphics": boolean,
+    "hasStandardHeadings": boolean,
+    "contactInfoInHeaderFooter": boolean,
+    "atsRiskRating": "Low" | "Medium" | "High",
+    "structuralHighlights": ["string"],
+    "criticalFixes": ["string"]
+  }
+}
+
+Rules:
+- Strictly extract ONLY the real information present in the file. Do NOT invent fake jobs, dates, or credentials.
+- If a section is missing (e.g., no certifications), return an empty array.
+- Output JSON only.`;
+
+    const contents: any[] = [];
+    if (cleanBase64 && (effectiveMimeType.startsWith("image/") || effectiveMimeType === "application/pdf")) {
+      contents.push({
+        inlineData: {
+          mimeType: effectiveMimeType,
+          data: cleanBase64,
+        },
+      });
+      contents.push(prompt);
+    } else if (cleanBase64) {
+      // Text / other decodable format
+      let textContent = "";
+      try {
+        textContent = Buffer.from(cleanBase64, "base64").toString("utf-8");
+      } catch {
+        textContent = rawText || "";
+      }
+      contents.push(`${prompt}\n\nDocument Text Content:\n"""\n${textContent.slice(0, 20000)}\n"""`);
+    } else {
+      contents.push(`${prompt}\n\nDocument Text Content:\n"""\n${(rawText || "").slice(0, 20000)}\n"""`);
+    }
+
+    const response = await ai.models.generateContent({
+      model: "gemini-3.8-flash",
+      contents,
+      config: {
+        responseMimeType: "application/json",
+      },
+    });
+
+    const parsed = JSON.parse(response.text?.trim() || "{}");
+    return res.json(parsed);
+  } catch (error: any) {
+    console.error("AI Parse Resume File error:", error);
+    return res.status(500).json({ error: error.message || "Failed to parse resume file" });
   }
 });
 

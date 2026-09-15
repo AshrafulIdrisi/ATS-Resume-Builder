@@ -169,6 +169,7 @@ export default function App() {
           <LandingPage
             onStartBuilding={() => setActiveTab('builder')}
             onOpenLoadSampleModal={() => setIsLoadSampleModalOpen(true)}
+            onOpenAtsScanner={() => setActiveTab('ats')}
             onSelectTemplate={(t) => {
               handleSelectTemplate(t);
               setActiveTab('builder');
@@ -221,7 +222,15 @@ export default function App() {
                 Back to Editor
               </button>
             </div>
-            <ATSCheckerPanel analysis={atsAnalysis} resumeRawText={rawResumeText} />
+            <ATSCheckerPanel
+              analysis={atsAnalysis}
+              resumeRawText={rawResumeText}
+              onImportResume={(imported) => {
+                setResumeData(imported);
+                setIsSampleActive(false);
+              }}
+              onGoToEditor={() => setActiveTab('builder')}
+            />
           </div>
         )}
 
