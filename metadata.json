@@ -1,0 +1,6 @@
+{
+  "name": "ATS Resume Builder",
+  "description": "Free, fast, and modern ATS-Friendly Resume Builder with live preview, ATS optimization score, keyword matcher, and instant PDF download.",
+  "requestFramePermissions": [],
+  "majorCapabilities": ["MAJOR_CAPABILITY_SERVER_SIDE_GEMINI_API"]
+}
